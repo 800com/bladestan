@@ -6,11 +6,11 @@
     "keywords": ["static analysis", "phpstan-extension"],
     "require": {
         "php": "^8.2",
-        "illuminate/contracts": "^11.15|^12.0",
-        "illuminate/filesystem": "^11.15|^12.0",
-        "illuminate/mail": "^11.15|^12.0",
-        "illuminate/notifications": "^11.15|^12.0",
-        "illuminate/view": "^11.15|^12.0",
+        "illuminate/contracts": "^11.15|^12.0|^13.0",
+        "illuminate/filesystem": "^11.15|^12.0|^13.0",
+        "illuminate/mail": "^11.15|^12.0|^13.0",
+        "illuminate/notifications": "^11.15|^12.0|^13.0",
+        "illuminate/view": "^11.15|^12.0|^13.0",
         "larastan/larastan": "^3.0",
         "livewire/livewire": "^3.3.5|^4.0",
         "phpstan/phpstan": "^2.0.1"
