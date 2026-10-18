@@ -11,8 +11,6 @@
 /** @var Illuminate\View\Factory $__env */
 /** @var Illuminate\Foundation\Application $app */
 /** file: foo.blade.php, line: 1 */
-if (\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()) {
-}
 if ($a) {
     /** file: foo.blade.php, line: 2 */
     function () use ($a) {
@@ -23,11 +21,7 @@ if ($a) {
     };
     /** file: foo.blade.php, line: 3 */
 }
-if (\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()) {
-}
 /** file: foo.blade.php, line: 4 */
-if (\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()) {
-}
 if ($b) {
     /** file: foo.blade.php, line: 5 */
     function () use ($b) {
@@ -37,6 +31,4 @@ if ($b) {
         $app = resolve(Illuminate\Foundation\Application::class);
     };
     /** file: foo.blade.php, line: 6 */
-}
-if (\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()) {
 }

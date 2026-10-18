@@ -16,7 +16,7 @@ final class FileNameAndLineNumberAddingPreCompilerTest extends PHPStanTestCase
 
     protected function setUp(): void
     {
-        //$this->templatePaths = ['resources/views'];
+        // $this->templatePaths = ['resources/views'];
 
         parent::setUp();
 

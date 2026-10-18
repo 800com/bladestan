@@ -27,7 +27,7 @@ final class DeleteInlineHTML extends NodeVisitorAbstract
                 $node->value,
                 $matches,
                 PREG_SET_ORDER
-            ) || ! $matches) {
+            )) {
                 return NodeTraverser::REMOVE_NODE;
             }
 

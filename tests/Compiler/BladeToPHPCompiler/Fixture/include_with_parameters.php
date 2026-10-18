@@ -16,8 +16,6 @@ function () use ($includeData) {
     extract($includeData);
 };
 /** file: foo.blade.php, line: 2 */
-if (\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()) {
-}
 if (true) {
     /** file: foo.blade.php, line: 3 */
     function () {
@@ -26,6 +24,4 @@ if (true) {
         $app = resolve(Illuminate\Foundation\Application::class);
     };
     /** file: foo.blade.php, line: 4 */
-}
-if (\Livewire\Mechanisms\ExtendBlade\ExtendBlade::isRenderingLivewireComponent()) {
 }

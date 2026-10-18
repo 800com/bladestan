@@ -6,7 +6,6 @@ namespace Bladestan\NodeAnalyzer;
 
 use Illuminate\Contracts\Support\Arrayable;
 use PhpParser\Node\Expr;
-use PhpParser\Node\Expr\Variable;
 use PHPStan\Analyser\Scope;
 use PHPStan\Reflection\ParametersAcceptorSelector;
 use PHPStan\Type\Constant\ConstantIntegerType;

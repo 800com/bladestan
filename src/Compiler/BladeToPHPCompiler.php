@@ -11,6 +11,7 @@ use Bladestan\PhpParser\ArrayStringToArrayConverter;
 use Bladestan\PhpParser\NodeVisitor\AddLoopVarTypeToForeachNodeVisitor;
 use Bladestan\PhpParser\NodeVisitor\DeleteInlineHTML;
 use Bladestan\PhpParser\NodeVisitor\IncludeCollector;
+use Bladestan\PhpParser\NodeVisitor\RemoveLivewireCompilerArtifacts;
 use Bladestan\PhpParser\NodeVisitor\TransformEach;
 use Bladestan\PhpParser\NodeVisitor\TransformIncludes;
 use Bladestan\PhpParser\SimplePhpParser;
@@ -56,13 +57,28 @@ final class BladeToPHPCompiler
      * @see https://regex101.com/r/B3BbxW/1
      * @var string
      */
-    private const BACKED_COMPONENT_REGEX = '/if \(isset\(\$component\)\).+?\$component = (.*?)::resolve\((\[(?:.*?)?\]) .+?\$component->withAttributes\(\[.*?\]\);/s';
+    private const BACKED_COMPONENT_REGEX = '/if \(isset\(\$component\)\).+?\$component = (.*?)::resolve\((\[(?:.*?)?\]) \+ \(isset\(\$attributes\).+?\$component->withAttributes\(\[.*?\]\);/s';
 
     /**
      * @see https://regex101.com/r/mt3PUM/1
      * @var string
      */
     private const COMPONENT_END_REGEX = '/echo \$__env->renderComponent\(\);.+?unset\(\$__componentOriginal.+?}/s';
+
+    /**
+     * Matches a @php ... @endphp block whose docblock contains the @bladestan-signature marker
+     * (a leading description before the marker is fine). Group 1 is the whole block; only blocks
+     * carrying the marker are dropped, so an ordinary @var docblock inside @php keeps working.
+     */
+    private const SIGNATURE_DOCBLOCK_REGEX = '/(@php\s*\n\s*\/\*\*(?:(?!\*\/)[\s\S])*?@bladestan-signature\b[\s\S]*?\*\/\s*\n\s*@endphp)/';
+
+    /**
+     * Matches every import form PHP allows after `use`: plain, `function`, `const`, and an alias.
+     * The excluded characters keep the match away from prose: a quote, parenthesis or semicolon
+     * ends it, so neither a closure's `use ($var)` clause nor the word "use" inside a string
+     * literal is mistaken for an import.
+     */
+    private const IMPORT_REGEX = '/(?<=^|\s)use +(?:function +|const +)?[^ \')(;]+(?: +as +\w+)?;/';
 
     /**
      * @var list<array{0: string, 1: string}>
@@ -186,10 +202,30 @@ final class BladeToPHPCompiler
     }
 
     /**
+     * Replace any @bladestan-signature block with the same number of blank lines, so the marker
+     * never reaches compilation while every following template line keeps its original number.
+     */
+    private function stripSignatureDocblock(string $fileContents): string
+    {
+        return preg_replace_callback(
+            self::SIGNATURE_DOCBLOCK_REGEX,
+            static fn (array $match): string => str_repeat("\n", substr_count($match[1], "\n")),
+            $fileContents
+        ) ?? $fileContents;
+    }
+
+    /**
      * @param array<string> $allVariablesList
      */
     private function inlineInclude(string $filePath, string $fileContents, array $allVariablesList): string
     {
+        // A @bladestan-signature block declares a template's variable contract for template-centric
+        // analysis. Here types come from the call site instead, so the block carries no meaning;
+        // leaving it in would turn its @var tags into contradictory inline type assertions. Drop it
+        // (keeping the line count intact for error mapping) so a template can already carry that
+        // annotation while still analysing cleanly.
+        $fileContents = $this->stripSignatureDocblock($fileContents);
+
         // Precompile contents to add template file name and line numbers
         $fileContents = $this->fileNameAndLineNumberAddingPreCompiler
             ->completeLineCommentsToBladeContents($filePath, $fileContents);
@@ -200,6 +236,7 @@ final class BladeToPHPCompiler
             /** @throws InvalidArgumentException */
             $compiledBlade = $this->bladeCompiler->compileString($fileContents);
             $stmts = $this->traverseStmtsWithVisitors($compiledBlade, [
+                new RemoveLivewireCompilerArtifacts(),
                 new DeleteInlineHTML(),
                 new AddLoopVarTypeToForeachNodeVisitor(),
                 new TransformEach(),
@@ -247,7 +284,7 @@ final class BladeToPHPCompiler
 
     private function bubbleUpImports(string $rawPhpContent): string
     {
-        preg_match_all('/(?<=^|\s)use +[^ \')(]+;/', $rawPhpContent, $imports);
+        preg_match_all(self::IMPORT_REGEX, $rawPhpContent, $imports);
         foreach ($imports[0] as $import) {
             $rawPhpContent = str_replace($import, '', $rawPhpContent);
         }
@@ -262,7 +299,7 @@ final class BladeToPHPCompiler
         foreach ($components as $component) {
             $class = $component[1];
             $arrayString = trim($component[2], ' ,');
-            $attributes = $this->arrayStringToArrayConverter->convert($arrayString);
+            $attributes = $this->convertComponentData($arrayString, $class);
 
             // Resolve any additional required arguments
             if (class_exists($class) && method_exists($class, '__construct')) {
@@ -307,6 +344,26 @@ final class BladeToPHPCompiler
             '',
             $rawPhpContent
         ) ?? throw new ShouldNotHappenException('preg_replace error');
+    }
+
+    /**
+     * A component's data array is located with a regular expression, so an unusual attribute value
+     * can still end the capture in the wrong place. Report that against the template and carry on
+     * with no data for this one component, rather than letting the parse error escape and abort the
+     * whole run without naming a file.
+     *
+     * @return array<string>
+     */
+    private function convertComponentData(string $arrayString, string $component): array
+    {
+        try {
+            /** @throws ParserError */
+            return $this->arrayStringToArrayConverter->convert($arrayString);
+        } catch (ParserError) {
+            $this->errors[] = ["Unable to read the data passed to component [{$component}].", 'bladestan.parsing'];
+
+            return [];
+        }
     }
 
     /**
@@ -387,7 +444,7 @@ final class BladeToPHPCompiler
             }
 
             $includeVariables = $matches[2] ?? '[]';
-            $includeVariables = $this->arrayStringToArrayConverter->convert($includeVariables);
+            $includeVariables = $this->convertComponentData($includeVariables, $view);
             // Filter out attributes
             $includeVariables = array_filter($includeVariables, function (string|int $key): bool {
                 return is_string($key) && preg_match('#^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$#s', $key) === 1;

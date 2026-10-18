@@ -103,6 +103,13 @@ final class FileNameAndLineNumberAddingPreCompiler
             return true;
         }
 
+        // A continuation line inside a docblock ("* @foo", "* free text", "*/ ..."). Prepending a
+        // "/** ... */" comment here would terminate the enclosing docblock and leave the rest as
+        // invalid PHP, so these lines never receive a line comment.
+        if (str_starts_with(trim($line), '*')) {
+            return true;
+        }
+
         if (preg_match(self::PHP_SINGLE_LINE_COMMENT_REGEX, trim($line))) {
             return true;
         }

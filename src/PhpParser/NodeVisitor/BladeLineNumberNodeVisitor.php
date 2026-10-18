@@ -52,7 +52,7 @@ final class BladeLineNumberNodeVisitor extends NodeVisitorAbstract
             return null;
         }
 
-        /** @var string[] $matches */ //@phpcs:ignore
+        /** @var string[] $matches */ // @phpcs:ignore
         $this->phpLineToBladeTemplateLineMap[$node->getStartLine()][$matches[1]] = (int) $matches[2];
 
         return null;

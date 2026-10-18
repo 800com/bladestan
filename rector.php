@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Rector\CodingStyle\Rector\Encapsed\EncapsedStringsToSprintfRector;
 use Rector\Config\RectorConfig;
-use Rector\PHPUnit\Set\PHPUnitSetList;
 use Rector\ValueObject\PhpVersion;
 
 return RectorConfig::configure()
@@ -21,7 +20,7 @@ return RectorConfig::configure()
         EncapsedStringsToSprintfRector::class, // sprint hurts performance noticeably
     ])
     ->withPhpVersion(PhpVersion::PHP_81)
-    ->withSets([PHPUnitSetList::PHPUNIT_100])
+    ->withComposerBased(phpunit: true)
     ->withPreparedSets(
         deadCode: true,
         codeQuality: true,
