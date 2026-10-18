@@ -13,6 +13,7 @@ use Bladestan\TemplateCompiler\ValueObject\RenderTemplateWithParameters;
 use Bladestan\ValueObject\CompiledTemplate;
 use InvalidArgumentException;
 use PhpParser\Node\Expr\CallLike;
+use PHPStan\Analyser\DependencyTracker;
 use PHPStan\Analyser\Scope;
 use PHPStan\Collectors\Registry;
 use PHPStan\DependencyInjection\MissingServiceException;
@@ -30,6 +31,10 @@ final class ViewRuleHelper
     }
 
     /**
+     * The templates are read on their own, so the result cache only re-analyses the calling file
+     * when they change if they are tracked as its dependencies.
+     *
+     * @param Scope&DependencyTracker $scope
      * @return list<IdentifierRuleError>
      *
      * @throws InvalidArgumentException
@@ -40,17 +45,44 @@ final class ViewRuleHelper
         Scope $scope,
         RenderTemplateWithParameters $renderTemplateWithParameters
     ): array {
-        $compiledTemplate = $this->compileToPhp(
-            $renderTemplateWithParameters,
-            $scope->getFile(),
-            $callLike->getLine()
-        );
+        try {
+            $compiledTemplate = $this->compileToPhp(
+                $renderTemplateWithParameters,
+                $scope->getFile(),
+                $callLike->getLine()
+            );
+        } catch (InvalidArgumentException $invalidArgumentException) {
+            $this->trackViewDirectories($scope);
+
+            throw $invalidArgumentException;
+        }
 
         if (! $compiledTemplate instanceof CompiledTemplate) {
             return [];
         }
 
+        $phpFileContentsWithLineMap = $compiledTemplate->phpFileContentsWithLineMap;
+        foreach ($phpFileContentsWithLineMap->templateFilePaths as $templateFilePath) {
+            $scope->trackFileDependency($templateFilePath);
+        }
+
+        if ($phpFileContentsWithLineMap->hasMissingViews) {
+            $this->trackViewDirectories($scope);
+        }
+
         return $this->processTemplateFilePath($compiledTemplate);
+    }
+
+    /**
+     * A missing view is fixed by creating it, which only a change in the view directories shows.
+     *
+     * @param Scope&DependencyTracker $scope
+     */
+    private function trackViewDirectories(Scope $scope): void
+    {
+        foreach ($this->templateFilePathResolver->resolveViewDirectories() as $viewDirectory) {
+            $scope->trackDirectoryDependency($viewDirectory, '*.php');
+        }
     }
 
     /**

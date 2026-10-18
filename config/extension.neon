@@ -47,8 +47,3 @@ services:
         class: Bladestan\PhpParser\NodeVisitor\ViewFunctionArgumentsNodeVisitor
         tags:
             - phpstan.parser.richParserNodeVisitor
-
-    -
-        class: Bladestan\PHPStan\BladeSignatureCacheMetaExtension
-        tags:
-            - phpstan.resultCacheMetaExtension

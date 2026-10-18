@@ -16,6 +16,7 @@ use PhpParser\Node\Expr\FuncCall;
 use PhpParser\Node\Expr\MethodCall;
 use PhpParser\Node\Expr\New_;
 use PhpParser\Node\Expr\StaticCall;
+use PHPStan\Analyser\DependencyTracker;
 use PHPStan\Analyser\Scope;
 use PHPStan\DependencyInjection\MissingServiceException;
 use PHPStan\Rules\Rule;
@@ -42,6 +43,8 @@ final class BladeRule implements Rule
     }
 
     /**
+     * @param Scope&DependencyTracker $scope
+     *
      * @throws MissingServiceException
      * @throws ValueError
      */

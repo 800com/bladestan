@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Bladestan\NodeAnalyzer;
 
 use Illuminate\Contracts\View\Factory as ViewFactory;
+use Illuminate\View\FileViewFinder;
 use Illuminate\View\ViewName;
 use InvalidArgumentException;
 
@@ -23,5 +24,23 @@ final class TemplateFilePathResolver
             ->find($resolvedValue);
 
         return $view;
+    }
+
+    /**
+     * The directories views are looked up in, namespaced ones included.
+     *
+     * @return list<string>
+     */
+    public function resolveViewDirectories(): array
+    {
+        $finder = resolve(ViewFactory::class)->getFinder();
+        if (! $finder instanceof FileViewFinder) {
+            return [];
+        }
+
+        /** @var array<array<string>> $hints */
+        $hints = $finder->getHints();
+
+        return array_values(array_unique(array_merge($finder->getPaths(), ...array_values($hints))));
     }
 }

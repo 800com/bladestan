@@ -86,6 +86,13 @@ final class BladeToPHPCompiler
     private array $errors;
 
     /**
+     * @var list<string>
+     */
+    private array $templateFilePaths;
+
+    private bool $hasMissingViews;
+
+    /**
      * @var array<string, Type>
      */
     private readonly array $shared;
@@ -136,6 +143,8 @@ final class BladeToPHPCompiler
         array $parametersArray
     ): PhpFileContentsWithLineMap {
         $this->errors = [];
+        $this->templateFilePaths = [$resolvedTemplateFilePath];
+        $this->hasMissingViews = false;
 
         $variablesAndTypes = $this->getViewData($viewName)
             + $parametersArray;
@@ -151,7 +160,13 @@ final class BladeToPHPCompiler
         $phpCode = $this->decoratePhpContent($phpCode, $variablesAndTypes);
 
         $phpLinesToTemplateLines = $this->phpLineToTemplateLineResolver->resolve($phpCode);
-        return new PhpFileContentsWithLineMap($phpCode, $phpLinesToTemplateLines, $this->errors);
+        return new PhpFileContentsWithLineMap(
+            $phpCode,
+            $phpLinesToTemplateLines,
+            $this->errors,
+            array_values(array_unique($this->templateFilePaths)),
+            $this->hasMissingViews,
+        );
     }
 
     /**
@@ -248,6 +263,7 @@ final class BladeToPHPCompiler
             $this->errors[] = ["View [{$filePath}] contains syntx errors.", 'bladestan.parsing'];
         } catch (InvalidArgumentException $invalidArgumentException) {
             $this->errors[] = [$invalidArgumentException->getMessage(), 'bladestan.missing'];
+            $this->hasMissingViews = true;
         }
 
         $rawPhpContent = $this->livewireTagCompiler->replace($rawPhpContent);
@@ -259,10 +275,12 @@ final class BladeToPHPCompiler
                 $includedFilePath = $this->viewFactory->getFinder()
                     ->find($inlinedElement->includedViewName);
                 $includedContent = $this->fileSystem->get($includedFilePath);
+                $this->templateFilePaths[] = $includedFilePath;
             } catch (InvalidArgumentException|FileNotFoundException $exception) {
                 $includedFilePath = '';
                 $includedContent = '';
                 $this->errors[] = [$exception->getMessage(), 'bladestan.missing'];
+                $this->hasMissingViews = true;
             }
 
             $includedContent = $inlinedElement->preprocessTemplate($includedContent, array_keys($this->shared));
