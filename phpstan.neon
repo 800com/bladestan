@@ -29,3 +29,10 @@ parameters:
         -
             identifier: missingType.checkedException
             path: tests/*
+        # the result cache dependencies are only reachable through PHPStan internals
+        -
+            identifiers:
+                - phpstanApi.classConstant
+                - phpstanApi.constructor
+                - phpstanApi.method
+            path: tests/Rules/BladeRuleDependencyTest.php
